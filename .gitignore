@@ -1,0 +1,35 @@
+# Environment Variables (enthalten oft Passwörter und Secrets)
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Backups
+*.backup
+*.bak
+backup/
+backups/
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# Editor directories
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Service-spezifische Daten (werden lokal auf VM gespeichert)
+services/*/config/
+services/*/data/
+services/*/projects/
+
+# Docker volumes (falls lokal mounted)
+volumes/

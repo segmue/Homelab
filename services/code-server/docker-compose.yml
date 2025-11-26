@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  code-server:
+    image: codercom/code-server:latest
+    container_name: code-server
+    restart: unless-stopped
+
+    ports:
+      - "${PORT:-8080}:8080"
+
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Europe/Zurich}
+      - PASSWORD=${PASSWORD}
+      - SUDO_PASSWORD=${SUDO_PASSWORD}
+      # Optional: Verwende HASHED_PASSWORD statt PASSWORD für mehr Sicherheit
+      # - HASHED_PASSWORD=${HASHED_PASSWORD}
+
+    volumes:
+      # Persistente Daten
+      - ./config:/home/coder/.config
+      - ./projects:/home/coder/projects
+      # Optional: Docker socket für Docker-in-Docker
+      # - /var/run/docker.sock:/var/run/docker.sock
+
+    # Optional: Für bessere Performance
+    # shm_size: '2gb'
+
+    # Optional: Netzwerk konfigurieren
+    # networks:
+    #   - homelab
+
+# Optional: Shared network für mehrere Services
+# networks:
+#   homelab:
+#     external: true

@@ -1,0 +1,9 @@
+# Environment variables (enthält Passwörter!)
+.env
+
+# Persistente Daten
+config/
+projects/
+
+# Logs
+*.log

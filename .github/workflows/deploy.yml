@@ -1,0 +1,79 @@
+name: Deploy to Homelab
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'services/**'
+      - 'scripts/**'
+      - '.github/workflows/deploy.yml'
+
+  workflow_dispatch:  # Ermöglicht manuelles Triggern über GitHub UI
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy to Proxmox VM
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to VM
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+        run: |
+          ssh -p ${SSH_PORT:-22} ${SSH_USER}@${SSH_HOST} << 'EOF'
+            set -e
+            echo "📦 Starting Homelab deployment..."
+
+            # Zum Homelab-Verzeichnis navigieren
+            HOMELAB_DIR="${HOMELAB_DIR:-$HOME/homelab}"
+
+            if [ ! -d "$HOMELAB_DIR" ]; then
+              echo "❌ Homelab directory not found at $HOMELAB_DIR"
+              echo "Creating directory and cloning repository..."
+              mkdir -p "$HOMELAB_DIR"
+              cd "$(dirname "$HOMELAB_DIR")"
+              git clone ${{ github.server_url }}/${{ github.repository }}.git "$(basename "$HOMELAB_DIR")"
+              cd "$HOMELAB_DIR"
+            else
+              cd "$HOMELAB_DIR"
+            fi
+
+            # Git pull
+            echo "🔄 Pulling latest changes..."
+            git fetch origin
+            git reset --hard origin/main
+
+            # Deployment-Skript ausführen
+            echo "🚀 Running deployment script..."
+            if [ -f "scripts/deploy.sh" ]; then
+              bash scripts/deploy.sh all update
+            else
+              echo "⚠️  No deployment script found, skipping..."
+            fi
+
+            echo "✅ Deployment completed successfully!"
+          EOF
+
+      - name: Deployment Success
+        if: success()
+        run: echo "✅ Homelab deployed successfully to VM!"
+
+      - name: Deployment Failed
+        if: failure()
+        run: |
+          echo "❌ Deployment failed!"
+          echo "Check the logs above for details."
+          exit 1
