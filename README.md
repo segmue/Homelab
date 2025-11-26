@@ -5,25 +5,31 @@ Dieses Repository enthält alle Konfigurationen und Services für mein Homelab.
 ## Infrastruktur
 
 ```
-┌─────────────────────────────────────────────┐
-│              Proxmox Host                    │
-│                                              │
-│  ┌──────────────────┐  ┌─────────────────┐ │
-│  │  Runner VM       │  │  Services VM     │ │
-│  │  1 CPU / 2GB     │  │  4 CPU / 8GB     │ │
-│  │                  │  │                  │ │
-│  │  • GitHub Runner │──SSH─→ • Services  │ │
-│  └──────────────────┘  └─────────────────┘ │
-│           ↕                                  │
-└───────────┼──────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│                    Proxmox Host                          │
+│                                                           │
+│  ┌──────────────────┐                                    │
+│  │  Runner VM       │   SSH    ┌──────────────────┐     │
+│  │  1 CPU / 2GB     │──────────→│ Services-VM-1    │     │
+│  │                  │          │ • code-server    │     │
+│  │  • GitHub Runner │   SSH    │ • nginx          │     │
+│  │  • Multi-VM      │──────────→│ • ...            │     │
+│  │    Deployment    │          └──────────────────┘     │
+│  └────────┬─────────┘                                    │
+│           │                     ┌──────────────────┐     │
+│           │             SSH     │ Weitere VMs      │     │
+│           └─────────────────────→│ • ...            │     │
+│                                 └──────────────────┘     │
+│           ↕ HTTPS                                        │
+└───────────┼──────────────────────────────────────────────┘
             │
       GitHub.com
 ```
 
 - **Hypervisor**: Proxmox
-- **Runner VM**: 1 CPU, 2GB RAM - GitHub Actions Runner
-- **Services VM**: Debian mit Docker - Alle Services
-- **Deployment**: Automatisiert via Self-hosted Runner
+- **Runner VM**: 1 CPU, 2GB RAM - Zentraler GitHub Actions Runner
+- **Services-VMs**: Debian mit Docker - Verschiedene Services auf verschiedenen VMs
+- **Deployment**: Automatisiert via Self-hosted Runner mit Multi-VM Support
 
 ## Services
 

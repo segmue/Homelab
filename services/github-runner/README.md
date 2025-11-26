@@ -1,36 +1,49 @@
 # GitHub Actions Self-hosted Runner
 
-GitHub Actions Runner als Docker Container für automatisches Deployment deiner Homelab-Services.
+GitHub Actions Runner als Docker Container für automatisches Deployment deiner Homelab-Services zu **mehreren VMs**.
 
-## 🏗️ Architektur
+## 🏗️ Multi-VM Architektur
 
 ```
-┌─────────────────────────────────────────────┐
-│              Proxmox Host                    │
-│                                              │
-│  ┌──────────────────┐  ┌─────────────────┐ │
-│  │  Runner VM       │  │  Services VM     │ │
-│  │  1 CPU / 1-2GB   │  │  4 CPU / 8GB     │ │
-│  │                  │  │                  │ │
-│  │  ┌────────────┐  │  │  ┌────────────┐ │ │
-│  │  │ GitHub     │──SSH─→│ code-server│ │ │
-│  │  │ Runner     │  │  │  │ plex       │ │ │
-│  │  │ (Container)│  │  │  │ ...        │ │ │
-│  │  └────────────┘  │  │  └────────────┘ │ │
-│  └──────────────────┘  └─────────────────┘ │
-│           ↕ HTTPS (443)                     │
-└─────────────────────────────────────────────┘
-              │
-              ↓
-        GitHub.com
+┌──────────────────────────────────────────────────────────┐
+│                    Proxmox Host                          │
+│                                                           │
+│  ┌──────────────────┐                                    │
+│  │  Runner VM       │   SSH    ┌──────────────────┐     │
+│  │  1 CPU / 2GB     │──────────→│ Services-VM-1    │     │
+│  │                  │          │ • code-server    │     │
+│  │  • GitHub Runner │   SSH    │ • nginx-proxy    │     │
+│  │  • Multi-VM      │──────────→┌──────────────────┐     │
+│  │    Deployment    │          │ Services-VM-2    │     │
+│  └────────┬─────────┘   SSH    │ • postgresql     │     │
+│           │         ────────────→│ • redis          │     │
+│           │                     └──────────────────┘     │
+│           │                     ┌──────────────────┐     │
+│           │             SSH     │ Monitoring-VM    │     │
+│           └─────────────────────→│ • prometheus     │     │
+│                                 │ • grafana        │     │
+│                                 └──────────────────┘     │
+│           ↕ HTTPS (443)                                  │
+└───────────┼──────────────────────────────────────────────┘
+            │
+      GitHub.com
 ```
 
-## 💡 Warum separate VM?
+## ⭐ Multi-VM Features
 
-- ✅ **Isolation**: Runner kann Services-VM nicht direkt kompromittieren
-- ✅ **Skalierbar**: Ein Runner kann mehrere Service-VMs verwalten
-- ✅ **Ressourcen**: Runner braucht minimal Ressourcen
-- ✅ **Wartung**: Services-VM kann neu aufgesetzt werden ohne Runner zu beeinflussen
+- **Zentrales Deployment**: Ein Runner verwaltet mehrere VMs
+- **Service Mapping**: Jeder Service wird automatisch zur richtigen VM deployed
+- **Flexible Targets**: Deploy zu spezifischen VMs oder allen auf einmal
+- **Inventory Management**: Einfache VM-Verwaltung via `vms.yml`
+- **Skalierbar**: Füge neue VMs einfach hinzu
+
+## 💡 Warum separate Runner-VM?
+
+- ✅ **Isolation**: Runner isoliert von Services
+- ✅ **Zentrale Steuerung**: Ein Punkt für alle Deployments
+- ✅ **Skalierbar**: Verwaltet unbegrenzt viele Service-VMs
+- ✅ **Ressourcen-effizient**: Runner braucht minimal Ressourcen
+- ✅ **Wartung**: Service-VMs können neu aufgesetzt werden
 - ✅ **Sicherheit**: Kleinere Angriffsfläche
 
 ## 📋 Voraussetzungen
@@ -108,41 +121,75 @@ RUNNER_NAME=homelab-runner
 
 **Wichtig:** `.env` enthält Secrets und wird nicht committet!
 
-### 5. SSH-Zugriff zur Services-VM einrichten
+### 5. Multi-VM SSH-Zugriff einrichten
 
+**Setup-Skript ausführen:**
 ```bash
-# Setup-Skript ausführen
 bash setup-ssh.sh
+```
 
+Dies erstellt:
+- SSH Key-Pair (einmal für alle VMs)
+- `vms.yml` Template
+- SSH Config (wird aus vms.yml generiert)
+
+**VMs konfigurieren:**
+```bash
+# vms.yml bearbeiten
+nano vms.yml
+```
+
+Füge deine VMs hinzu:
+```yaml
+vms:
+  - name: services-vm-1
+    host: 192.168.1.100    # Deine VM IP
+    user: debian           # SSH User
+    port: 22
+    description: "Hauptserver"
+    enabled: true
+
+  - name: services-vm-2    # Weitere VMs hinzufügen
+    host: 192.168.1.101
+    user: debian
+    port: 22
+    description: "Datenbank-Server"
+    enabled: true
+
+service_mapping:
+  code-server: services-vm-1   # Service → VM Zuordnung
+  # plex: services-vm-1
+  # postgresql: services-vm-2
+```
+
+**Public Key zu ALLEN VMs hinzufügen:**
+```bash
 # Public Key anzeigen
 cat ssh/id_ed25519.pub
 ```
 
-**Auf der Services-VM:**
+Auf **jeder VM**:
 ```bash
-# SSH in Services-VM
-ssh user@services-vm-ip
-
-# Public Key zu authorized_keys hinzufügen
+ssh user@vm-ip
 nano ~/.ssh/authorized_keys
 # → Public Key einfügen und speichern
 ```
 
-**Zurück auf der Runner-VM:**
-
-SSH Config bearbeiten:
+**SSH Config neu generieren:**
 ```bash
-nano ssh/config
+# Nach Änderungen an vms.yml
+bash setup-ssh.sh
 ```
 
-Ersetze:
-- `SERVICES_VM_IP` → IP der Services-VM (z.B. `192.168.1.100`)
-- `SERVICES_VM_USER` → SSH-User (z.B. `debian`)
-
-**SSH-Verbindung testen:**
+**Verbindungen testen:**
 ```bash
-# Test mit Docker
-docker compose run --rm github-runner ssh -F /root/.ssh/config services-vm 'echo "✅ SSH works!"'
+# Liste alle VMs
+cd ~/homelab/services/github-runner
+bash deploy-to-vm.sh list
+
+# Teste SSH zu jeder VM
+docker compose run --rm github-runner ssh services-vm-1 'hostname'
+docker compose run --rm github-runner ssh services-vm-2 'hostname'
 ```
 
 ### 6. Runner starten
@@ -169,13 +216,84 @@ Du solltest deinen Runner sehen:
 - Status: 🟢 **Idle**
 - Labels: `self-hosted, linux, x64, homelab`
 
+## 🎯 Multi-VM Deployment Usage
+
+### Alle VMs deployen
+
+```bash
+# Via GitHub Actions (empfohlen)
+GitHub → Actions → Deploy to Homelab → Run workflow → Run workflow
+
+# Oder manuell auf Runner-VM
+cd ~/homelab/services/github-runner
+bash deploy-to-vm.sh deploy-all
+```
+
+### Einzelne VM deployen
+
+```bash
+# Via GitHub Actions
+GitHub → Actions → Deploy to Homelab → Run workflow
+  → Target VM: services-vm-1
+  → Run workflow
+
+# Oder manuell
+bash deploy-to-vm.sh deploy services-vm-1
+```
+
+### Einzelnen Service deployen
+
+```bash
+# Via GitHub Actions
+GitHub → Actions → Deploy to Homelab → Run workflow
+  → Specific service: code-server
+  → Run workflow
+
+# Oder manuell (deployed automatisch zur konfigurierten VM)
+bash deploy-to-vm.sh service code-server
+```
+
+### Service zu spezifischer VM deployen
+
+```bash
+# Nur dieser Service auf dieser VM
+bash deploy-to-vm.sh deploy services-vm-1 code-server
+```
+
+### VMs auflisten
+
+```bash
+cd ~/homelab/services/github-runner
+bash deploy-to-vm.sh list
+```
+
+### Neue VM hinzufügen
+
+1. In `vms.yml` neue VM eintragen
+2. `bash setup-ssh.sh` ausführen (regeneriert SSH config)
+3. Public Key auf neuer VM hinzufügen
+4. SSH testen: `docker compose run --rm github-runner ssh neue-vm hostname`
+5. Service-Mapping in `vms.yml` aktualisieren
+6. Fertig! Deployments funktionieren automatisch
+
 ## ✅ Testen
 
-### Test 1: Manueller Workflow-Trigger
+### Test 1: VMs Liste anzeigen
 
-1. Gehe zu: **GitHub → Actions → Deploy to Homelab**
-2. Klicke: **Run workflow** → **Run workflow**
-3. Beobachte den Workflow (sollte grün werden ✅)
+```bash
+cd ~/homelab/services/github-runner
+bash deploy-to-vm.sh list
+```
+
+Du solltest alle konfigurierten VMs sehen.
+
+### Test 2: Manueller Workflow-Trigger
+
+1. Gehe zu: **GitHub → Actions → Deploy to Homelab (Multi-VM)**
+2. Klicke: **Run workflow**
+3. Optional: Spezifische VM oder Service wählen
+4. Klicke: **Run workflow**
+5. Beobachte den Workflow (sollte grün werden ✅)
 
 ### Test 2: Git Push
 

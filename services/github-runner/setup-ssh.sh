@@ -1,68 +1,162 @@
 #!/bin/bash
 
-# Setup SSH Keys für GitHub Runner → Service VM Zugriff
-# Dieses Skript wird auf der Runner-VM ausgeführt
+# Multi-VM SSH Setup für GitHub Runner
+# Verwaltet SSH-Zugriff zu mehreren VMs
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SSH_DIR="$SCRIPT_DIR/ssh"
+VMS_CONFIG="$SCRIPT_DIR/vms.yml"
 
-echo "🔑 Setting up SSH keys for GitHub Runner..."
+# Farben
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+echo -e "${BLUE}🔑 GitHub Runner Multi-VM SSH Setup${NC}"
+echo ""
 
 # SSH-Verzeichnis erstellen
 mkdir -p "$SSH_DIR"
 chmod 700 "$SSH_DIR"
 
-# SSH Key generieren (falls nicht vorhanden)
+# SSH Key generieren (EINMAL für alle VMs)
 if [ ! -f "$SSH_DIR/id_ed25519" ]; then
-    echo "Generating new SSH key pair..."
-    ssh-keygen -t ed25519 -C "github-runner" -f "$SSH_DIR/id_ed25519" -N ""
-    echo "✅ SSH key pair generated"
+    echo "Generating SSH key pair (shared across all VMs)..."
+    ssh-keygen -t ed25519 -C "github-runner-multivm" -f "$SSH_DIR/id_ed25519" -N ""
+    echo -e "${GREEN}✅ SSH key pair generated${NC}"
 else
-    echo "ℹ️  SSH key pair already exists"
+    echo -e "${YELLOW}ℹ️  SSH key pair already exists${NC}"
 fi
 
-# Permissions setzen
 chmod 600 "$SSH_DIR/id_ed25519"
 chmod 644 "$SSH_DIR/id_ed25519.pub"
 
-# known_hosts Datei erstellen (leer)
+# known_hosts erstellen
 touch "$SSH_DIR/known_hosts"
 chmod 644 "$SSH_DIR/known_hosts"
 
-# SSH Config erstellen
-cat > "$SSH_DIR/config" <<'EOF'
-# SSH Config für GitHub Runner
+# VMs Config erstellen falls nicht vorhanden
+if [ ! -f "$VMS_CONFIG" ]; then
+    cat > "$VMS_CONFIG" <<'EOF'
+# VM Inventory für GitHub Runner
+# Format: YAML
 
-Host services-vm
-    HostName SERVICES_VM_IP
-    User SERVICES_VM_USER
-    Port 22
+vms:
+  # Beispiel-VM (bitte anpassen oder löschen)
+  - name: services-vm-1
+    host: 192.168.1.100
+    user: debian
+    port: 22
+    description: "Hauptserver für Web-Services (code-server, etc.)"
+    enabled: true
+
+  # Weitere VMs hier hinzufügen:
+  # - name: services-vm-2
+  #   host: 192.168.1.101
+  #   user: debian
+  #   port: 22
+  #   description: "Datenbank-Server"
+  #   enabled: true
+
+  # - name: monitoring-vm
+  #   host: 192.168.1.102
+  #   user: debian
+  #   port: 22
+  #   description: "Monitoring & Logs"
+  #   enabled: true
+EOF
+    echo -e "${GREEN}✅ Created vms.yml template${NC}"
+fi
+
+# SSH Config generieren aus vms.yml
+echo ""
+echo "Generating SSH config from vms.yml..."
+
+cat > "$SSH_DIR/config" <<'HEADER'
+# SSH Config für GitHub Runner (Auto-generiert)
+# Bearbeite vms.yml und führe setup-ssh.sh erneut aus
+
+HEADER
+
+# VMs aus vms.yml parsen (einfacher YAML-Parser)
+while IFS= read -r line; do
+    # Neue VM beginnt mit "- name:"
+    if [[ $line =~ ^[[:space:]]*-[[:space:]]*name:[[:space:]]*(.+) ]]; then
+        vm_name="${BASH_REMATCH[1]}"
+        vm_host=""
+        vm_user=""
+        vm_port="22"
+        vm_enabled="true"
+
+        # Nächste Zeilen lesen für diese VM
+        while IFS= read -r subline; do
+            # Stop bei nächster VM oder Ende
+            if [[ $subline =~ ^[[:space:]]*-[[:space:]]*name: ]] || [[ -z "$subline" && -n "$vm_host" ]]; then
+                break
+            fi
+
+            # Parse Felder
+            if [[ $subline =~ ^[[:space:]]*host:[[:space:]]*(.+) ]]; then
+                vm_host="${BASH_REMATCH[1]}"
+            elif [[ $subline =~ ^[[:space:]]*user:[[:space:]]*(.+) ]]; then
+                vm_user="${BASH_REMATCH[1]}"
+            elif [[ $subline =~ ^[[:space:]]*port:[[:space:]]*(.+) ]]; then
+                vm_port="${BASH_REMATCH[1]}"
+            elif [[ $subline =~ ^[[:space:]]*enabled:[[:space:]]*(.+) ]]; then
+                vm_enabled="${BASH_REMATCH[1]}"
+            fi
+        done
+
+        # SSH Config Entry erstellen (nur wenn enabled)
+        if [[ "$vm_enabled" == "true" && -n "$vm_host" && -n "$vm_user" ]]; then
+            cat >> "$SSH_DIR/config" <<ENTRY
+
+Host $vm_name
+    HostName $vm_host
+    User $vm_user
+    Port $vm_port
     IdentityFile ~/.ssh/id_ed25519
     StrictHostKeyChecking accept-new
     UserKnownHostsFile ~/.ssh/known_hosts
-EOF
+ENTRY
+            echo -e "  ${GREEN}✓${NC} Added: $vm_name ($vm_user@$vm_host:$vm_port)"
+        fi
+    fi
+done < "$VMS_CONFIG"
 
 chmod 600 "$SSH_DIR/config"
 
 echo ""
-echo "✅ SSH setup complete!"
+echo -e "${GREEN}✅ SSH config generated successfully!${NC}"
 echo ""
-echo "📋 Next steps:"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo -e "${BLUE}📋 Next Steps:${NC}"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-echo "1. Edit ssh/config and replace:"
-echo "   - SERVICES_VM_IP with your service VM IP (e.g., 192.168.1.100)"
-echo "   - SERVICES_VM_USER with your SSH user (e.g., debian)"
+echo "1️⃣  Edit vms.yml and configure your VMs:"
+echo "   nano $VMS_CONFIG"
 echo ""
-echo "2. Copy the public key to your Services VM:"
-echo "   cat $SSH_DIR/id_ed25519.pub"
+echo "2️⃣  Copy this public key to ALL your VMs:"
+echo "   ${YELLOW}$(cat "$SSH_DIR/id_ed25519.pub")${NC}"
 echo ""
-echo "3. On your Services VM, add the public key to authorized_keys:"
-echo "   ssh SERVICES_VM_USER@SERVICES_VM_IP"
+echo "3️⃣  On each VM, add the public key:"
+echo "   ssh user@vm-ip"
 echo "   nano ~/.ssh/authorized_keys"
-echo "   # Paste the public key and save"
+echo "   # Paste the public key above and save"
 echo ""
-echo "4. Test SSH connection from Runner VM:"
-echo "   docker compose run --rm github-runner ssh -F /root/.ssh/config services-vm 'echo Connection successful!'"
+echo "4️⃣  Re-run this script after editing vms.yml:"
+echo "   bash setup-ssh.sh"
+echo ""
+echo "5️⃣  Test connection to each VM:"
+
+# Liste alle VMs zum Testen
+grep "^Host " "$SSH_DIR/config" | awk '{print $2}' | while read -r vm; do
+    echo "   docker compose run --rm github-runner ssh $vm 'hostname'"
+done
+
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""

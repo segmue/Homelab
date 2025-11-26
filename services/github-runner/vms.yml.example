@@ -1,0 +1,46 @@
+# VM Inventory für GitHub Runner
+# Definiert alle VMs die vom Runner verwaltet werden
+
+vms:
+  # Erste Services-VM
+  - name: services-vm-1
+    host: 192.168.1.100  # IP der VM
+    user: debian         # SSH User
+    port: 22
+    description: "Hauptserver für Web-Services"
+    enabled: true
+
+  # Weitere VMs hier hinzufügen:
+
+  # - name: services-vm-2
+  #   host: 192.168.1.101
+  #   user: debian
+  #   port: 22
+  #   description: "Datenbank-Server (PostgreSQL, Redis)"
+  #   enabled: true
+
+  # - name: monitoring-vm
+  #   host: 192.168.1.102
+  #   user: debian
+  #   port: 22
+  #   description: "Monitoring Stack (Prometheus, Grafana)"
+  #   enabled: true
+
+  # - name: media-vm
+  #   host: 192.168.1.103
+  #   user: debian
+  #   port: 22
+  #   description: "Media Server (Plex, Jellyfin)"
+  #   enabled: true
+
+# Service → VM Mapping
+# Definiert welcher Service auf welcher VM deployed wird
+service_mapping:
+  # Services auf services-vm-1
+  code-server: services-vm-1
+
+  # Beispiele für zukünftige Services:
+  # nginx-proxy: services-vm-1
+  # plex: media-vm
+  # postgresql: services-vm-2
+  # grafana: monitoring-vm

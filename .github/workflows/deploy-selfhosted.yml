@@ -1,4 +1,4 @@
-name: Deploy to Homelab (Self-hosted Runner)
+name: Deploy to Homelab (Multi-VM)
 
 on:
   push:
@@ -10,71 +10,74 @@ on:
       - '.github/workflows/deploy-selfhosted.yml'
 
   workflow_dispatch:  # Ermöglicht manuelles Triggern über GitHub UI
+    inputs:
+      target_vm:
+        description: 'Target VM (leave empty for all VMs)'
+        required: false
+        default: ''
+      service:
+        description: 'Specific service (leave empty for all services)'
+        required: false
+        default: ''
 
 jobs:
   deploy:
     runs-on: self-hosted  # Läuft auf deinem Runner!
-    name: Deploy to Services VM
+    name: Deploy to Homelab VMs
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Deploy to Services VM
+      - name: Deploy to VMs
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          TARGET_VM: ${{ github.event.inputs.target_vm }}
+          SERVICE: ${{ github.event.inputs.service }}
         run: |
           set -e
-          echo "📦 Starting Homelab deployment..."
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📦 Homelab Multi-VM Deployment"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "🖥️  Runner: $(hostname)"
           echo "📂 Workspace: $GITHUB_WORKSPACE"
-
-          # SSH zur Services-VM und deployen
-          ssh -F ~/.ssh/config services-vm << 'EOF'
-            set -e
-
-            echo "🔄 Connected to Services VM: $(hostname)"
-
-            # Zum Homelab-Verzeichnis navigieren
-            HOMELAB_DIR="${HOMELAB_DIR:-$HOME/homelab}"
-
-            if [ ! -d "$HOMELAB_DIR" ]; then
-              echo "❌ Homelab directory not found at $HOMELAB_DIR"
-              echo "Creating directory and cloning repository..."
-              mkdir -p "$(dirname "$HOMELAB_DIR")"
-              cd "$(dirname "$HOMELAB_DIR")"
-              git clone https://github.com/${{ github.repository }}.git "$(basename "$HOMELAB_DIR")"
-              cd "$HOMELAB_DIR"
-            else
-              cd "$HOMELAB_DIR"
-            fi
-
-            # Git pull (neueste Änderungen holen)
-            echo "🔄 Pulling latest changes..."
-            git fetch origin
-            git reset --hard origin/main
-
-            # Deployment-Skript ausführen
-            echo "🚀 Running deployment script..."
-            if [ -f "scripts/deploy.sh" ]; then
-              bash scripts/deploy.sh all update
-            else
-              echo "⚠️  No deployment script found"
-              exit 1
-            fi
-
-            echo "✅ Deployment completed on Services VM!"
-          EOF
-
-          echo "✅ Homelab deployment finished successfully!"
-
-      - name: Deployment Success
-        if: success()
-        run: |
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "✅ DEPLOYMENT SUCCESSFUL"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "📊 Commit: ${{ github.sha }}"
           echo "👤 Author: ${{ github.actor }}"
-          echo "💬 Message: ${{ github.event.head_commit.message }}"
+          echo ""
+
+          # Deployment-Skript ausführen
+          cd $GITHUB_WORKSPACE/services/github-runner
+
+          if [ -n "$TARGET_VM" ]; then
+            # Spezifische VM deployen
+            echo "🎯 Target: $TARGET_VM${SERVICE:+ → $SERVICE}"
+            bash deploy-to-vm.sh deploy "$TARGET_VM" "${SERVICE:-all}"
+          elif [ -n "$SERVICE" ]; then
+            # Service zu seiner konfigurierten VM deployen
+            echo "🎯 Deploying service: $SERVICE"
+            bash deploy-to-vm.sh service "$SERVICE"
+          else
+            # Alle VMs deployen
+            echo "🎯 Target: All VMs"
+            bash deploy-to-vm.sh deploy-all
+          fi
+
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "✅ Deployment completed successfully!"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+      - name: Deployment Summary
+        if: success()
+        run: |
+          echo ""
+          echo "📋 Deployment Summary:"
+          echo "  Repository: ${{ github.repository }}"
+          echo "  Branch: ${{ github.ref_name }}"
+          echo "  Commit: ${{ github.sha }}"
+          echo "  Message: ${{ github.event.head_commit.message }}"
+          echo "  Author: ${{ github.actor }}"
+          echo ""
 
       - name: Deployment Failed
         if: failure()
@@ -82,10 +85,17 @@ jobs:
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "❌ DEPLOYMENT FAILED"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "Check the logs above for details"
+          echo ""
           echo "Common issues:"
-          echo "  - SSH connection to Services VM failed"
-          echo "  - Git pull failed (merge conflicts?)"
-          echo "  - Deployment script failed"
-          echo "  - Docker errors"
+          echo "  • SSH connection to VM failed"
+          echo "  • VM not configured in vms.yml"
+          echo "  • Git pull failed (merge conflicts?)"
+          echo "  • Docker errors on target VM"
+          echo ""
+          echo "Troubleshooting:"
+          echo "  1. Check runner logs: docker compose logs"
+          echo "  2. Test SSH: docker compose run --rm github-runner ssh <vm-name> hostname"
+          echo "  3. Check vms.yml configuration"
+          echo "  4. Check target VM: ssh <vm-name>"
+          echo ""
           exit 1

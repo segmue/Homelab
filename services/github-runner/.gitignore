@@ -1,6 +1,9 @@
 # Environment variables (contains ACCESS_TOKEN!)
 .env
 
+# VM Inventory (contains IPs and infrastructure details!)
+vms.yml
+
 # SSH Keys (NEVER commit these!)
 ssh/
 *.pem
