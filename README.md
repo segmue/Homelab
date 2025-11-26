@@ -4,12 +4,35 @@ Dieses Repository enthält alle Konfigurationen und Services für mein Homelab.
 
 ## Infrastruktur
 
+```
+┌─────────────────────────────────────────────┐
+│              Proxmox Host                    │
+│                                              │
+│  ┌──────────────────┐  ┌─────────────────┐ │
+│  │  Runner VM       │  │  Services VM     │ │
+│  │  1 CPU / 2GB     │  │  4 CPU / 8GB     │ │
+│  │                  │  │                  │ │
+│  │  • GitHub Runner │──SSH─→ • Services  │ │
+│  └──────────────────┘  └─────────────────┘ │
+│           ↕                                  │
+└───────────┼──────────────────────────────────┘
+            │
+      GitHub.com
+```
+
 - **Hypervisor**: Proxmox
-- **VM**: Debian mit Docker
-- **Deployment**: Automatisiert via GitHub Actions
+- **Runner VM**: 1 CPU, 2GB RAM - GitHub Actions Runner
+- **Services VM**: Debian mit Docker - Alle Services
+- **Deployment**: Automatisiert via Self-hosted Runner
 
 ## Services
 
+### Runner VM
+| Service | Status | Beschreibung |
+|---------|--------|--------------|
+| [github-runner](./services/github-runner/) | 🔄 | GitHub Actions Runner für CI/CD |
+
+### Services VM
 | Service | Status | Port | Beschreibung |
 |---------|--------|------|--------------|
 | [code-server](./services/code-server/) | ✅ | 8080 | VS Code im Browser |
@@ -18,8 +41,10 @@ Dieses Repository enthält alle Konfigurationen und Services für mein Homelab.
 
 ```
 .
+├── .github/workflows/ # GitHub Actions Workflows
 ├── services/          # Alle Services mit Docker Compose
-│   └── code-server/   # VS Code im Browser
+│   ├── github-runner/ # GitHub Runner (läuft auf Runner-VM)
+│   └── code-server/   # VS Code (läuft auf Services-VM)
 ├── scripts/           # Deployment und Hilfsskripte
 └── docs/              # Dokumentation
 ```
@@ -37,6 +62,13 @@ Dieses Repository enthält alle Konfigurationen und Services für mein Homelab.
 
 ## Dokumentation
 
+### Erste Schritte
 - 📖 [Quick Start Guide](./docs/QUICKSTART.md) - Erste Schritte
-- 🚀 [Deployment Setup](./docs/DEPLOYMENT.md) - Automatisches CI/CD
-- 🔧 [Code-Server Guide](./services/code-server/README.md) - VS Code Setup
+
+### CI/CD Setup
+- 🤖 [GitHub Runner Setup](./services/github-runner/README.md) - Self-hosted Runner für separate VM ⭐
+- 🚀 [Deployment Optionen](./docs/DEPLOYMENT.md) - Alle CI/CD-Optionen im Vergleich
+- 📝 [Self-hosted Runner Guide](./docs/SELFHOSTED-RUNNER.md) - Alternative: Runner direkt auf Services-VM
+
+### Services
+- 🔧 [Code-Server Guide](./services/code-server/README.md) - VS Code im Browser

@@ -1,0 +1,14 @@
+# Environment variables (contains ACCESS_TOKEN!)
+.env
+
+# SSH Keys (NEVER commit these!)
+ssh/
+*.pem
+*.key
+id_*
+
+# Runner data
+runner-data/
+
+# Logs
+*.log

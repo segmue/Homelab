@@ -1,0 +1,91 @@
+name: Deploy to Homelab (Self-hosted Runner)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'services/**'
+      - 'scripts/**'
+      - '.github/workflows/deploy-selfhosted.yml'
+
+  workflow_dispatch:  # Ermöglicht manuelles Triggern über GitHub UI
+
+jobs:
+  deploy:
+    runs-on: self-hosted  # Läuft auf deinem Runner!
+    name: Deploy to Services VM
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Deploy to Services VM
+        run: |
+          set -e
+          echo "📦 Starting Homelab deployment..."
+          echo "🖥️  Runner: $(hostname)"
+          echo "📂 Workspace: $GITHUB_WORKSPACE"
+
+          # SSH zur Services-VM und deployen
+          ssh -F ~/.ssh/config services-vm << 'EOF'
+            set -e
+
+            echo "🔄 Connected to Services VM: $(hostname)"
+
+            # Zum Homelab-Verzeichnis navigieren
+            HOMELAB_DIR="${HOMELAB_DIR:-$HOME/homelab}"
+
+            if [ ! -d "$HOMELAB_DIR" ]; then
+              echo "❌ Homelab directory not found at $HOMELAB_DIR"
+              echo "Creating directory and cloning repository..."
+              mkdir -p "$(dirname "$HOMELAB_DIR")"
+              cd "$(dirname "$HOMELAB_DIR")"
+              git clone https://github.com/${{ github.repository }}.git "$(basename "$HOMELAB_DIR")"
+              cd "$HOMELAB_DIR"
+            else
+              cd "$HOMELAB_DIR"
+            fi
+
+            # Git pull (neueste Änderungen holen)
+            echo "🔄 Pulling latest changes..."
+            git fetch origin
+            git reset --hard origin/main
+
+            # Deployment-Skript ausführen
+            echo "🚀 Running deployment script..."
+            if [ -f "scripts/deploy.sh" ]; then
+              bash scripts/deploy.sh all update
+            else
+              echo "⚠️  No deployment script found"
+              exit 1
+            fi
+
+            echo "✅ Deployment completed on Services VM!"
+          EOF
+
+          echo "✅ Homelab deployment finished successfully!"
+
+      - name: Deployment Success
+        if: success()
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "✅ DEPLOYMENT SUCCESSFUL"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📊 Commit: ${{ github.sha }}"
+          echo "👤 Author: ${{ github.actor }}"
+          echo "💬 Message: ${{ github.event.head_commit.message }}"
+
+      - name: Deployment Failed
+        if: failure()
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "❌ DEPLOYMENT FAILED"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "Check the logs above for details"
+          echo "Common issues:"
+          echo "  - SSH connection to Services VM failed"
+          echo "  - Git pull failed (merge conflicts?)"
+          echo "  - Deployment script failed"
+          echo "  - Docker errors"
+          exit 1

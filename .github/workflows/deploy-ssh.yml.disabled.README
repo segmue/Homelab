@@ -1,0 +1,41 @@
+# deploy-ssh.yml.disabled
+
+Dieser Workflow ist **deaktiviert**, da er NICHT funktioniert wenn deine VM nur im lokalen Netzwerk ist.
+
+## ❌ Warum deaktiviert?
+
+Dieser Workflow:
+- Läuft auf GitHub's Servern (`runs-on: ubuntu-latest`)
+- Versucht via SSH zur VM zu verbinden
+- **Problem:** VM ist nur im lokalen Netzwerk (192.168.x.x) erreichbar
+- GitHub kann deine VM nicht erreichen → SSH schlägt fehl
+
+## ✅ Alternative: Self-hosted Runner
+
+Nutze stattdessen: `deploy-selfhosted.yml`
+
+Siehe: `services/github-runner/README.md`
+
+## 🔄 Wann kann dieser Workflow reaktiviert werden?
+
+Wenn deine VM von außen erreichbar ist:
+1. ✅ VM hat öffentliche IP
+2. ✅ Port-Forward auf Router (SSH Port 22 → VM)
+3. ✅ VPN (z.B. Tailscale)
+
+Dann:
+```bash
+mv deploy-ssh.yml.disabled deploy-ssh.yml
+# GitHub Secrets konfigurieren (SSH_PRIVATE_KEY, SSH_HOST, SSH_USER, SSH_PORT)
+git add .
+git commit -m "Enable SSH-based deployment"
+git push
+```
+
+## ⚠️ Sicherheitshinweis
+
+SSH-Port nach außen zu öffnen ist ein Sicherheitsrisiko!
+
+Besser:
+- Self-hosted Runner nutzen (keine offenen Ports nötig)
+- Oder VPN nutzen (z.B. Tailscale)

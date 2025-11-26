@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  github-runner:
+    image: myoung34/github-runner:latest
+    container_name: github-runner
+    restart: unless-stopped
+
+    environment:
+      # GitHub Repository URL
+      - REPO_URL=${REPO_URL}
+
+      # GitHub Personal Access Token (mit repo + workflow Permissions)
+      - ACCESS_TOKEN=${ACCESS_TOKEN}
+
+      # Runner Name (wie er in GitHub angezeigt wird)
+      - RUNNER_NAME=${RUNNER_NAME:-homelab-runner}
+
+      # Runner Work Directory
+      - RUNNER_WORKDIR=/tmp/github-runner
+
+      # Runner Labels (für runs-on: [self-hosted, ...])
+      - LABELS=${LABELS:-self-hosted,linux,x64,homelab}
+
+      # Runner Group (optional)
+      - RUNNER_GROUP=${RUNNER_GROUP:-Default}
+
+      # Automatisch entfernen bei Container-Stop
+      - EPHEMERAL=${EPHEMERAL:-false}
+
+      # Disable Auto-Update (Stabilität)
+      - DISABLE_AUTO_UPDATE=${DISABLE_AUTO_UPDATE:-true}
+
+    volumes:
+      # Docker Socket für Docker-Befehle im Workflow
+      - /var/run/docker.sock:/var/run/docker.sock
+
+      # SSH Keys für Zugriff auf Service-VM
+      - ./ssh:/root/.ssh:ro
+
+      # Persistente Runner-Daten (optional)
+      # - ./runner-data:/tmp/github-runner
+
+    # Optional: Resource Limits
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '1'
+    #       memory: 1G
+    #     reservations:
+    #       cpus: '0.5'
+    #       memory: 512M
+
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
