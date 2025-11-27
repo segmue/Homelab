@@ -10,9 +10,9 @@ Dieses Repository enthält alle Konfigurationen und Services für mein Homelab.
 │                                                           │
 │  ┌──────────────────┐                                    │
 │  │  Runner VM       │   SSH    ┌──────────────────┐     │
-│  │  1 CPU / 2GB     │──────────→│ Services-VM-1    │     │
+│  │  1 CPU / 1GB     │──────────→│ Services-VM-1    │     │
 │  │                  │          │ • code-server    │     │
-│  │  • GitHub Runner │   SSH    │ • nginx          │     │
+│  │  • GitHub Runner │   SSH    │ • ev. jupyter     │     │
 │  │  • Multi-VM      │──────────→│ • ...            │     │
 │  │    Deployment    │          └──────────────────┘     │
 │  └────────┬─────────┘                                    │
@@ -27,7 +27,7 @@ Dieses Repository enthält alle Konfigurationen und Services für mein Homelab.
 ```
 
 - **Hypervisor**: Proxmox
-- **Runner VM**: 1 CPU, 2GB RAM - Zentraler GitHub Actions Runner
+- **Runner VM**: 1 CPU, 1GB RAM - Zentraler GitHub Actions Runner
 - **Services-VMs**: Debian mit Docker - Verschiedene Services auf verschiedenen VMs
 - **Deployment**: Automatisiert via Self-hosted Runner mit Multi-VM Support
 
