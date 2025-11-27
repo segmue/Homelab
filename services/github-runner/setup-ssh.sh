@@ -50,7 +50,7 @@ vms:
     host: 192.168.1.100
     user: debian
     port: 22
-    description: "Hauptserver für Web-Services (code-server, etc.)"
+    description: "Hauptserver für Web-Services (codeserver, etc.)"
     enabled: true
 
   # Weitere VMs hier hinzufügen:

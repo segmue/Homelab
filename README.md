@@ -11,7 +11,7 @@ Dieses Repository enthält alle Konfigurationen und Services für mein Homelab.
 │  ┌──────────────────┐                                    │
 │  │  Runner VM       │   SSH    ┌──────────────────┐     │
 │  │  1 CPU / 2GB     │──────────→│ Services-VM-1    │     │
-│  │                  │          │ • code-server    │     │
+│  │                  │          │ • codeserver     │     │
 │  │  • GitHub Runner │   SSH    │ • nginx          │     │
 │  │  • Multi-VM      │──────────→│ • ...            │     │
 │  │    Deployment    │          └──────────────────┘     │
@@ -41,7 +41,7 @@ Dieses Repository enthält alle Konfigurationen und Services für mein Homelab.
 ### Services VM
 | Service | Status | Port | Beschreibung |
 |---------|--------|------|--------------|
-| [code-server](./services/code-server/) | ✅ | 8080 | VS Code im Browser |
+| [codeserver](./services/codeserver/) | ✅ | 8080 | VS Code im Browser |
 
 ## Struktur
 
@@ -50,7 +50,7 @@ Dieses Repository enthält alle Konfigurationen und Services für mein Homelab.
 ├── .github/workflows/ # GitHub Actions Workflows
 ├── services/          # Alle Services mit Docker Compose
 │   ├── github-runner/ # GitHub Runner (läuft auf Runner-VM)
-│   └── code-server/   # VS Code (läuft auf Services-VM)
+│   └── codeserver/    # VS Code (läuft auf Services-VM)
 ├── scripts/           # Deployment und Hilfsskripte
 └── docs/              # Dokumentation
 ```
@@ -62,7 +62,7 @@ Dieses Repository enthält alle Konfigurationen und Services für mein Homelab.
 ### Schnellstart
 
 1. Repository auf VM klonen: `git clone <repo-url> ~/homelab`
-2. Service-Ordner öffnen: `cd services/code-server`
+2. Service-Ordner öffnen: `cd services/codeserver`
 3. `.env`-Datei aus `.env.example` erstellen und anpassen
 4. Service starten: `docker compose up -d`
 
@@ -77,4 +77,4 @@ Dieses Repository enthält alle Konfigurationen und Services für mein Homelab.
 - 📝 [Self-hosted Runner Guide](./docs/SELFHOSTED-RUNNER.md) - Alternative: Runner direkt auf Services-VM
 
 ### Services
-- 🔧 [Code-Server Guide](./services/code-server/README.md) - VS Code im Browser
+- 🔧 [Code-Server Guide](./services/codeserver/README.md) - VS Code im Browser

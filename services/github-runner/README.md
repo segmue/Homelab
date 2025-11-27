@@ -11,7 +11,7 @@ GitHub Actions Runner als Docker Container für automatisches Deployment deiner 
 │  ┌──────────────────┐                                    │
 │  │  Runner VM       │   SSH    ┌──────────────────┐     │
 │  │  1 CPU / 2GB     │──────────→│ Services-VM-1    │     │
-│  │                  │          │ • code-server    │     │
+│  │                  │          │ • codeserver    │     │
 │  │  • GitHub Runner │   SSH    │ • nginx-proxy    │     │
 │  │  • Multi-VM      │──────────→┌──────────────────┐     │
 │  │    Deployment    │          │ Services-VM-2    │     │
@@ -157,7 +157,7 @@ vms:
     enabled: true
 
 service_mapping:
-  code-server: services-vm-1   # Service → VM Zuordnung
+  codeserver: services-vm-1   # Service → VM Zuordnung
   # plex: services-vm-1
   # postgresql: services-vm-2
 ```
@@ -246,18 +246,18 @@ bash deploy-to-vm.sh deploy services-vm-1
 ```bash
 # Via GitHub Actions
 GitHub → Actions → Deploy to Homelab → Run workflow
-  → Specific service: code-server
+  → Specific service: codeserver
   → Run workflow
 
 # Oder manuell (deployed automatisch zur konfigurierten VM)
-bash deploy-to-vm.sh service code-server
+bash deploy-to-vm.sh service codeserver
 ```
 
 ### Service zu spezifischer VM deployen
 
 ```bash
 # Nur dieser Service auf dieser VM
-bash deploy-to-vm.sh deploy services-vm-1 code-server
+bash deploy-to-vm.sh deploy services-vm-1 codeserver
 ```
 
 ### VMs auflisten
@@ -453,7 +453,7 @@ docker compose run --rm github-runner ssh your-vm 'hostname'
 
 ### Service-Namen mit Minus funktionieren nicht
 
-**Symptom:** Services wie `code-server` werden nicht gefunden oder als Befehl interpretiert
+**Symptom:** Services wie `codeserver` werden nicht gefunden oder als Befehl interpretiert
 
 **Ursache:** War ein Bug in alten Versionen (vor v2.0) - Service-Namen wurden nicht korrekt gequotet
 
@@ -462,7 +462,7 @@ docker compose run --rm github-runner ssh your-vm 'hostname'
 In `vms.yml`:
 ```yaml
 service_mapping:
-  code-server: services-vm-1  # ✅ Funktioniert ab v2.0
+  codeserver: services-vm-1  # ✅ Funktioniert ab v2.0
   nginx-proxy: services-vm-1   # ✅ Auch mit Minus
 ```
 
@@ -473,7 +473,7 @@ cd ~/homelab
 git pull
 
 # Alte Workaround (nicht mehr nötig):
-# Services ohne Minus benennen: codeserver statt code-server
+# Services ohne Minus benennen: codeserver statt codeserver
 ```
 
 ### "Failed to add the host to the list of known_hosts"

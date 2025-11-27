@@ -37,7 +37,7 @@ vms:
 # Definiert welcher Service auf welcher VM deployed wird
 service_mapping:
   # Services auf services-vm-1
-  code-server: services-vm-1
+  codeserver: services-vm-1
 
   # Beispiele für zukünftige Services:
   # nginx-proxy: services-vm-1

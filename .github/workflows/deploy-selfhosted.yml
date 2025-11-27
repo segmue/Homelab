@@ -12,11 +12,11 @@ on:
   workflow_dispatch:  # Ermöglicht manuelles Triggern über GitHub UI
     inputs:
       target_vm:
-        description: 'Target VM (leave empty for all VMs)'
+        description: 'Target VM (leave empty for smart deployment via service_mapping)'
         required: false
         default: ''
       service:
-        description: 'Specific service (leave empty for all services)'
+        description: 'Specific service (leave empty for all mapped services)'
         required: false
         default: ''
 
@@ -57,8 +57,9 @@ jobs:
             echo "🎯 Deploying service: $SERVICE"
             bash deploy-to-vm.sh service "$SERVICE"
           else
-            # Alle VMs deployen
-            echo "🎯 Target: All VMs"
+            # Smart Deployment: Alle Services gemäß service_mapping
+            echo "🎯 Smart Deployment: Using service_mapping from vms.yml"
+            echo "   Each service will be deployed ONLY to its assigned VM"
             bash deploy-to-vm.sh deploy-all
           fi
 

@@ -61,6 +61,29 @@ get_vm_for_service() {
     echo "$vm"
 }
 
+# Alle Service-Mappings holen
+get_all_service_mappings() {
+    in_mapping=false
+    while IFS= read -r line; do
+        if [[ $line =~ ^service_mapping: ]]; then
+            in_mapping=true
+            continue
+        fi
+
+        if [[ $in_mapping == true ]]; then
+            # Stop bei nächster Section
+            if [[ $line =~ ^[a-z_]+: ]] && [[ ! $line =~ ^[[:space:]]+ ]]; then
+                break
+            fi
+
+            # Parse "service: vm" mapping (skip comments)
+            if [[ $line =~ ^[[:space:]]+([a-zA-Z0-9_-]+):[[:space:]]*([a-zA-Z0-9_-]+) ]]; then
+                echo "${BASH_REMATCH[1]}:${BASH_REMATCH[2]}"
+            fi
+        fi
+    done < "$VMS_CONFIG"
+}
+
 # Alle VMs auflisten
 list_vms() {
     echo -e "${BLUE}📋 Configured VMs:${NC}"
@@ -158,23 +181,27 @@ Usage:
 Commands:
   list                    List all configured VMs
   deploy <vm> [service]   Deploy to specific VM
-  deploy-all [service]    Deploy to all VMs
+  deploy-all             Deploy all services based on service_mapping
   service <service>       Deploy specific service to its configured VM
 
 Examples:
-  $0 list                           # List all VMs
-  $0 deploy services-vm-1           # Deploy all services to services-vm-1
-  $0 deploy services-vm-1 plex      # Deploy only plex to services-vm-1
-  $0 deploy-all                     # Deploy to all VMs
-  $0 service code-server            # Deploy code-server to its configured VM
+  $0 list                       # List all VMs
+  $0 deploy-all                 # Deploy each service to its mapped VM (smart!)
+  $0 deploy codeserver-vm       # Deploy all services to codeserver-vm
+  $0 deploy codeserver-vm plex  # Deploy only plex to codeserver-vm
+  $0 service codeserver         # Deploy codeserver to its configured VM
 
 Configuration:
   Edit vms.yml to configure VMs and service mappings
+
+Smart Deployment:
+  deploy-all reads service_mapping and deploys each service ONLY to its
+  assigned VM. This prevents deploying github-runner to service VMs!
 EOF
 }
 
 # Main
-case "${1:-}" in
+case "${1:-deploy-all}" in
     list)
         if [ ! -f "$VMS_CONFIG" ]; then
             log_error "vms.yml not found! Run setup-ssh.sh first."
@@ -197,36 +224,40 @@ case "${1:-}" in
         ;;
 
     deploy-all)
-        SERVICE="${2:-all}"
-        log_info "Deploying ${SERVICE} to all VMs..."
+        log_info "🚀 Smart deployment based on service_mapping..."
+        echo ""
 
-        # Alle enabled VMs deployen
+        # Alle Service-Mappings holen
+        mappings=$(get_all_service_mappings)
+
+        if [ -z "$mappings" ]; then
+            log_warn "No service mappings found in vms.yml"
+            log_info "Add services under 'service_mapping:' section"
+            exit 0
+        fi
+
+        # Jeden Service zu seiner VM deployen
         failed=0
-        while IFS= read -r line; do
-            if [[ $line =~ ^[[:space:]]*-[[:space:]]*name:[[:space:]]*(.+) ]]; then
-                vm_name="${BASH_REMATCH[1]}"
-                vm_enabled=""
+        deployed=0
 
-                while IFS= read -r subline; do
-                    if [[ $subline =~ ^[[:space:]]*-[[:space:]]*name: ]] || [[ -z "$subline" && -n "$vm_enabled" ]]; then
-                        break
-                    fi
-                    if [[ $subline =~ ^[[:space:]]*enabled:[[:space:]]*(.+) ]]; then
-                        vm_enabled="${BASH_REMATCH[1]}"
-                    fi
-                done
-
-                if [[ "$vm_enabled" == "true" ]]; then
-                    deploy_to_vm "$vm_name" "$SERVICE" || failed=$((failed + 1))
-                fi
+        while IFS=: read -r service vm; do
+            log_info "→ Service '$service' → VM '$vm'"
+            if deploy_to_vm "$vm" "$service"; then
+                deployed=$((deployed + 1))
+            else
+                failed=$((failed + 1))
             fi
-        done < "$VMS_CONFIG"
+            echo ""
+        done <<< "$mappings"
+
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_info "Deployment Summary:"
+        log_info "  ✅ Successful: $deployed"
+        [ $failed -gt 0 ] && log_error "  ❌ Failed: $failed"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
         if [ $failed -gt 0 ]; then
-            log_error "$failed VM(s) failed to deploy"
             exit 1
-        else
-            log_info "✅ All VMs deployed successfully!"
         fi
         ;;
 
@@ -252,7 +283,7 @@ case "${1:-}" in
         deploy_to_vm "$VM_NAME" "$SERVICE"
         ;;
 
-    help|--help|-h|"")
+    help|--help|-h)
         show_help
         ;;
 

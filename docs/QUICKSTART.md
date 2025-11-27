@@ -20,7 +20,7 @@ cd homelab
 
 ```bash
 # Zum Service-Verzeichnis
-cd services/code-server
+cd services/codeserver
 
 # Environment-Variablen konfigurieren
 cp .env.example .env
@@ -132,10 +132,10 @@ cd ~/homelab
 bash scripts/deploy.sh all update
 
 # Einzelnen Service updaten
-bash scripts/deploy.sh code-server update
+bash scripts/deploy.sh codeserver update
 
 # Service neustarten
-bash scripts/deploy.sh code-server restart
+bash scripts/deploy.sh codeserver restart
 ```
 
 ## 🔧 Nützliche Befehle
@@ -253,7 +253,7 @@ sudo du -h --max-depth=1 / | sort -hr | head -20
 ## 📚 Weitere Dokumentation
 
 - [Deployment-Optionen](./DEPLOYMENT.md) - Detaillierte CI/CD-Setups
-- [Code-Server README](../services/code-server/README.md) - Code-Server Dokumentation
+- [Code-Server README](../services/codeserver/README.md) - Code-Server Dokumentation
 - [Repository README](../README.md) - Haupt-README
 
 ## 🎯 Nächste Schritte
