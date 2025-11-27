@@ -424,6 +424,96 @@ nano ssh/config
 # → IP/User korrekt?
 ```
 
+### "Bad owner or permissions on /root/.ssh/config"
+
+**Symptom:** SSH-Fehler beim Testen oder Workflow schlägt fehl
+
+**Ursache:** SSH-Dateien gehören dem falschen User (nicht root)
+
+**Lösung:**
+```bash
+cd ~/homelab/services/github-runner
+
+# Permissions automatisch setzen
+bash setup-ssh.sh
+
+# Oder manuell:
+sudo chown -R root:root ssh/
+sudo chmod 700 ssh/
+sudo chmod 600 ssh/config
+sudo chmod 600 ssh/id_ed25519
+sudo chmod 644 ssh/id_ed25519.pub
+sudo chmod 644 ssh/known_hosts
+
+# Testen
+docker compose run --rm github-runner ssh your-vm 'hostname'
+```
+
+**Hinweis:** Das `setup-ssh.sh` Skript setzt die Permissions seit v2.0 automatisch korrekt.
+
+### Service-Namen mit Minus funktionieren nicht
+
+**Symptom:** Services wie `code-server` werden nicht gefunden oder als Befehl interpretiert
+
+**Ursache:** War ein Bug in alten Versionen (vor v2.0) - Service-Namen wurden nicht korrekt gequotet
+
+**Lösung:** Update auf neueste Version oder:
+
+In `vms.yml`:
+```yaml
+service_mapping:
+  code-server: services-vm-1  # ✅ Funktioniert ab v2.0
+  nginx-proxy: services-vm-1   # ✅ Auch mit Minus
+```
+
+Falls weiterhin Probleme:
+```bash
+# Git pull für Updates
+cd ~/homelab
+git pull
+
+# Alte Workaround (nicht mehr nötig):
+# Services ohne Minus benennen: codeserver statt code-server
+```
+
+### "Failed to add the host to the list of known_hosts"
+
+**Symptom:** Warnung beim SSH-Test, aber Verbindung funktioniert
+
+**Ursache:** Kosmetisches Problem - kann ignoriert werden
+
+**Status:** Harmlos! SSH funktioniert trotzdem dank `StrictHostKeyChecking accept-new`
+
+Optional beheben:
+```bash
+cd ~/homelab/services/github-runner
+sudo touch ssh/known_hosts
+sudo chmod 644 ssh/known_hosts
+sudo chown root:root ssh/known_hosts
+```
+
+### "setlocale: LC_ALL: cannot change locale"
+
+**Symptom:** Locale-Warnung in Logs
+
+**Ursache:** War in alten Versionen (vor v2.0)
+
+**Lösung:** Update docker-compose.yml oder Git pull:
+
+```yaml
+environment:
+  - LC_ALL=C.UTF-8
+  - LANG=C.UTF-8
+```
+
+Dann Container neu starten:
+```bash
+docker compose down
+docker compose up -d
+```
+
+**Hinweis:** Ab v2.0 ist dies bereits in der docker-compose.yml enthalten.
+
 ### Runner offline nach VM-Neustart
 
 **Symptom:** Nach Neustart der Runner-VM ist der Runner offline

@@ -129,6 +129,22 @@ done < "$VMS_CONFIG"
 
 chmod 600 "$SSH_DIR/config"
 
+# Set correct ownership for Docker container (must be root)
+echo ""
+echo "Setting correct permissions for Docker container..."
+if command -v sudo &> /dev/null; then
+    sudo chown -R root:root "$SSH_DIR"
+    sudo chmod 700 "$SSH_DIR"
+    sudo chmod 600 "$SSH_DIR/config"
+    sudo chmod 600 "$SSH_DIR/id_ed25519"
+    sudo chmod 644 "$SSH_DIR/id_ed25519.pub"
+    sudo chmod 644 "$SSH_DIR/known_hosts"
+    echo -e "${GREEN}✅ Permissions set (owner: root)${NC}"
+else
+    echo -e "${YELLOW}⚠️  sudo not available - you may need to set permissions manually${NC}"
+    echo "   Run: sudo chown -R root:root $SSH_DIR"
+fi
+
 echo ""
 echo -e "${GREEN}✅ SSH config generated successfully!${NC}"
 echo ""
@@ -140,12 +156,14 @@ echo "1️⃣  Edit vms.yml and configure your VMs:"
 echo "   nano $VMS_CONFIG"
 echo ""
 echo "2️⃣  Copy this public key to ALL your VMs:"
-echo "   ${YELLOW}$(cat "$SSH_DIR/id_ed25519.pub")${NC}"
+echo "   ${YELLOW}$(sudo cat "$SSH_DIR/id_ed25519.pub" 2>/dev/null || cat "$SSH_DIR/id_ed25519.pub")${NC}"
 echo ""
-echo "3️⃣  On each VM, add the public key:"
+echo "3️⃣  On each VM, create .ssh directory and add the public key:"
 echo "   ssh user@vm-ip"
+echo "   mkdir -p ~/.ssh && chmod 700 ~/.ssh"
 echo "   nano ~/.ssh/authorized_keys"
 echo "   # Paste the public key above and save"
+echo "   chmod 600 ~/.ssh/authorized_keys"
 echo ""
 echo "4️⃣  Re-run this script after editing vms.yml:"
 echo "   bash setup-ssh.sh"
@@ -153,7 +171,7 @@ echo ""
 echo "5️⃣  Test connection to each VM:"
 
 # Liste alle VMs zum Testen
-grep "^Host " "$SSH_DIR/config" | awk '{print $2}' | while read -r vm; do
+grep "^Host " "$SSH_DIR/config" 2>/dev/null | awk '{print $2}' | while read -r vm; do
     echo "   docker compose run --rm github-runner ssh $vm 'hostname'"
 done
 

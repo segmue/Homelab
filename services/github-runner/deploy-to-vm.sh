@@ -129,7 +129,7 @@ deploy_to_vm() {
 
         # Deployment-Skript ausführen
         if [ -f "scripts/deploy.sh" ]; then
-            bash scripts/deploy.sh ${service:-all} update
+            bash scripts/deploy.sh "${service:-all}" update
         else
             echo "⚠️  No deployment script found"
             exit 1
